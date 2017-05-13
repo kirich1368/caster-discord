@@ -1,7 +1,5 @@
 'use strict';
 
-import { inspect } from 'util';
-
 import { PLATFORM } from '../util/constants';
 
 /* TODO: Change from local package to npm */
@@ -29,7 +27,10 @@ export class DiscordMessageContext extends MessageContext {
 	constructor (platform, caster, message) {
 		super(caster);
 
-		this.platform = PLATFORM;
+		this.platform = {
+			id: platform.options.id,
+			name: PLATFORM
+		};
 
 		const { type } = message.channel;
 
@@ -67,7 +68,7 @@ export class DiscordMessageContext extends MessageContext {
 			options.text = text;
 		}
 
-		options.channel_id = this.from.id;
+		options._from = this.from;
 
 		return this._platform.send(options);
 	}
@@ -90,26 +91,5 @@ export class DiscordMessageContext extends MessageContext {
 		options.text = `<@${this.sender.id}>, ${options.text}`;
 
 		return this.send(options);
-	}
-
-	/**
-	 * Hide private property to inspect
-	 *
-	 * @return {string}
-	 */
-	inspect () {
-		const out = {};
-
-		for (const key of Object.keys(this)) {
-			if (key.startsWith('_')) {
-				continue;
-			}
-
-			out[key] = this[key];
-		}
-
-		delete out.caster;
-
-		return this.constructor.name + ' ' + inspect(out);
 	}
 }
