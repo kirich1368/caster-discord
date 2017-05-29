@@ -71,6 +71,31 @@ export class DiscordPlatform extends Platform {
 	/**
 	 * @inheritdoc
 	 */
+	getAdapter () {
+		return this.discord;
+	}
+
+	/**
+	 * Returns the platform id
+	 *
+	 * @return {string}
+	 */
+	getId () {
+		return this.options.id;
+	}
+
+	/**
+	 * Returns the platform name
+	 *
+	 * @return {string}
+	 */
+	getPlatformName () {
+		return PLATFORM;
+	}
+
+	/**
+	 * @inheritdoc
+	 */
 	async start () {
 		await this.discord.login(this.options.adapter.token);
 
@@ -91,41 +116,49 @@ export class DiscordPlatform extends Platform {
 	/**
 	 * @inheritdoc
 	 */
-	subscribe (caster) {
+	async subscribe (caster) {
 		this._casters.add(caster);
+
+		if (!this.isStarted()) {
+			await this.start();
+		}
+
+		caster.outcoming.use({
+			name: `outcoming-discord-${this.options.id}`,
+
+			handler: async (context, next) => {
+				if (context.getPlatformName() !== PLATFORM) {
+					return await next();
+				}
+
+				if (context.getPlatformId() !== this.options.id) {
+					return await next();
+				}
+
+				return await this.discord.channels.get(context.to.id).sendMessage(context.text);
+			}
+		});
 	}
 
 	/**
 	 * @inheritdoc
 	 */
-	unsubscribe (caster) {
+	async unsubscribe (caster) {
 		this._casters.delete(caster);
-	}
 
-	/**
-	 * Sends a message
-	 *
-	 * @param {Object} params
-	 *
-	 * @return {Promise<mixed>}
-	 */
-	send (params) {
-		if ('text' in params) {
-			params.content = params.text;
-			delete params.text;
+		/* TODO: Add delete outcoming middleware */
+
+		if (this._casters.size === 0 && this.isStarted()) {
+			await this.stop();
 		}
-
-		const { content, _from: { id } } = params;
-		delete params.content;
-		delete params._from;
-
-		return this.discord.channels.get(id).sendMessage(content, params);
 	}
 
 	/**
 	 * Add default events discord
 	 */
 	_addDefaultEvents () {
+		this.discord.on('error', console.error);
+
 		this.discord.on('message', (message) => {
 			/* Ignore other bots and self */
 			if (message.author.bot) {
@@ -133,8 +166,8 @@ export class DiscordPlatform extends Platform {
 			}
 
 			for (const caster of this._casters) {
-				caster.dispatchIncomingMiddleware(
-					new DiscordMessageContext(this, caster, message)
+				caster.dispatchIncoming(
+					new DiscordMessageContext(caster, message, this.options.id)
 				);
 			}
 		});

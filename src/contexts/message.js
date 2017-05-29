@@ -6,8 +6,7 @@ import { PLATFORM } from '../util/constants';
 import { MessageContext } from '../../../caster';
 
 const enumTypesMessage = {
-	text: 'channel',
-	dm: 'dialog'
+	text: 'channel'
 };
 
 /**
@@ -19,16 +18,15 @@ export class DiscordMessageContext extends MessageContext {
 	/**
 	 * Constructor
 	 *
-	 * @param {DiscordPlatform} platform
-	 * @param {Caster}          caster
-	 * @param {Message}         message
-	 * @param {string}          type
+	 * @param {Caster}  caster
+	 * @param {Message} message
+	 * @param {number}  id
 	 */
-	constructor (platform, caster, message) {
+	constructor (caster, message, id) {
 		super(caster);
 
 		this.platform = {
-			id: platform.options.id,
+			id,
 			name: PLATFORM
 		};
 
@@ -49,8 +47,6 @@ export class DiscordMessageContext extends MessageContext {
 		this.text = message.content;
 
 		this.raw = message;
-
-		this._platform = platform;
 	}
 
 	/**
@@ -68,9 +64,15 @@ export class DiscordMessageContext extends MessageContext {
 			options.text = text;
 		}
 
-		options._from = this.from;
+		this.to = this.from;
+		this.text = options.text;
 
-		return this._platform.send(options);
+		const message = new DiscordMessageContext(this.caster, this.raw, this.platform.id);
+
+		message.to = this.from;
+		message.text = options.text;
+
+		return this.caster.dispatchOutcoming(message);
 	}
 
 	/**
