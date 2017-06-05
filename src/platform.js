@@ -10,7 +10,7 @@ import createDebug from 'debug';
 import { DiscordMessageContext } from './contexts/message';
 
 import {
-	PLATFORM,
+	PLATFORM_NAME,
 	defaultOptions,
 	defaultOptionsSchema
 } from './util/constants';
@@ -90,7 +90,7 @@ export class DiscordPlatform extends Platform {
 	 * @return {string}
 	 */
 	getPlatformName () {
-		return PLATFORM;
+		return PLATFORM_NAME;
 	}
 
 	/**
@@ -123,20 +123,16 @@ export class DiscordPlatform extends Platform {
 			await this.start();
 		}
 
-		caster.outcoming.use({
-			name: `outcoming-discord-${this.options.id}`,
-
-			handler: async (context, next) => {
-				if (context.getPlatformName() !== PLATFORM) {
-					return await next();
-				}
-
-				if (context.getPlatformId() !== this.options.id) {
-					return await next();
-				}
-
-				return await this.discord.channels.get(context.to.id).sendMessage(context.text);
+		caster.outcoming.addPlatform(this, async (context, next) => {
+			if (context.getPlatformName() !== PLATFORM_NAME) {
+				return await next();
 			}
+
+			if (context.getPlatformId() !== this.options.id) {
+				return await next();
+			}
+
+			return await this.discord.channels.get(context.to.id).send(context.text);
 		});
 	}
 
@@ -146,7 +142,7 @@ export class DiscordPlatform extends Platform {
 	async unsubscribe (caster) {
 		this._casters.delete(caster);
 
-		/* TODO: Add delete outcoming middleware */
+		caster.outcoming.removePlatform(this);
 
 		if (this._casters.size === 0 && this.isStarted()) {
 			await this.stop();

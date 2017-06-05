@@ -7,7 +7,7 @@ import Joi from 'joi';
  *
  * @type {string}
  */
-export const PLATFORM = 'discord';
+export const PLATFORM_NAME = 'discord';
 
 /**
  * Default options platform
